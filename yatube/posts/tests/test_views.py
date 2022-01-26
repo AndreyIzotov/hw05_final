@@ -278,4 +278,4 @@ class FollowTest(TestCase):
                                 kwargs={'username': self.author.username}))
         self.client.get(reverse('posts:profile_unfollow',
                                 kwargs={'username': self.author.username}))
-        self.assertFalse(Follow.objects.exists())
+        self.assertFalse(Follow.objects.count(), 0)
