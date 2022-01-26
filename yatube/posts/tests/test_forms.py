@@ -166,5 +166,5 @@ class PostCreateFormTesting(TestCase):
             group=PostCreateFormTesting.group,
         )
         self.assertFalse(
-            new_post_2.text in response.context.first().text)
+            new_post_2.text in response.context['page_obj'][0].text)
         cache.delete('index_page')

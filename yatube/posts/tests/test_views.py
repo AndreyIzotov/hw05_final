@@ -251,40 +251,31 @@ class PaginatorViewsTest(TestCase):
 
 
 class FollowTest(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-
-        cls.user = User.objects.create_user(
-            username='NoName',
-            email='1@1.com',
-            password='Ss12345678')
-        cls.author = User.objects.create_user(
-            username='Author',
-            email='2@2.com',
-            password='Ss1234567890'
+    def setUp(self) -> None:
+        self.author = User.objects.create_user(
+            username='TestUser',
+            password='Test12345',
+            email='test@test.com'
         )
-        cls.post = Post.objects.create(
-            author=cls.author,
-            text='Тестовый текст',
-            group=cls.group,
-            image=cls.image,
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='MySelfUser',
+            password='Test12345',
+            email='test@test.com'
         )
+        self.client.force_login(self.user)
 
-    def setUp(self):
-        self.user = Client()
-        self.user.force_login(FollowTest.user)
-        self.author = Client()
-        self.author.force_login(FollowTest.author)
-
-    def test_user_can_follow(self):
-        self.user.get(reverse('profile_follow', kwargs={
-            'username': self.author.username,
-        }))
+    def test_follow(self):
+        self.client.get(reverse('posts:profile_follow',
+                        kwargs={'username': self.author.username}))
+        follow = Follow.objects.first()
         self.assertEqual(Follow.objects.count(), 1)
+        self.assertEqual(follow.author, self.author)
+        self.assertEqual(follow.user, self.user)
 
-    def test_user_can_unfollow(self):
-        self.user.get(reverse('profile_unfollow', kwargs={
-            'username': self.author.username,
-        }))
-        self.assertEqual(Follow.objects.count(), 0)
+    def test_unfollow(self):
+        self.client.get(reverse('posts:profile_follow',
+                                kwargs={'username': self.author.username}))
+        self.client.get(reverse('posts:profile_unfollow',
+                                kwargs={'username': self.author.username}))
+        self.assertFalse(Follow.objects.exists())
