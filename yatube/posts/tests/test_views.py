@@ -3,6 +3,7 @@ import tempfile
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
@@ -180,6 +181,25 @@ class StaticURLTests(TestCase):
         )
         self.assertEqual(len(response.context['page_obj']), 0)
 
+    def test_cache(self):
+        cache.delete('index_page')
+        new_post = Post.objects.create(
+            author=StaticURLTests.user,
+            text='Тестовый текст новый',
+            group=StaticURLTests.group,
+        )
+        response = self.guest_client.get(reverse('posts:index'))
+        self.assertTrue(
+            new_post.text in response.context['page_obj'][0].text)
+        new_post_2 = Post.objects.create(
+            author=StaticURLTests.user,
+            text='Тестовый текст новый 1',
+            group=StaticURLTests.group,
+        )
+        self.assertFalse(
+            new_post_2.text in response.context['page_obj'][0].text)
+        cache.delete('index_page')
+
 
 class PaginatorViewsTest(TestCase):
     @classmethod
@@ -279,3 +299,25 @@ class FollowTest(TestCase):
         self.client.get(reverse('posts:profile_unfollow',
                                 kwargs={'username': self.author.username}))
         self.assertFalse(Follow.objects.count(), 0)
+
+    def test_follow_index(self):
+        self.post = Post.objects.create(
+            author=self.author,
+            text='TestText'
+        )
+        self.client.get(reverse('posts:profile_follow',
+                                kwargs={'username': self.author.username}))
+        response = self.client.get(reverse('posts:follow_index'))
+        self.assertEqual(response.context['page_obj'][0], self.post)
+
+    def test_unfollow_index(self):
+        Post.objects.create(
+            author=self.user,
+            text='TestText',
+        )
+        self.client.get(reverse('posts:profile_follow',
+                                kwargs={'username': self.user.username}))
+        self.client.get(reverse('posts:profile_unfollow',
+                                kwargs={'username': self.user.username}))
+        response = self.client.get(reverse('posts:follow_index'))
+        self.assertEqual(len(response.context['page_obj']), 0)

@@ -3,7 +3,6 @@ import tempfile
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, Client, override_settings
 from django.urls import reverse
@@ -131,12 +130,17 @@ class PostCreateFormTesting(TestCase):
         form_data = {
             'text': 'Текст комментария',
         }
-        self.guest_client.post(
+        response = self.guest_client.post(
             reverse('posts:add_comment', kwargs={'post_id': self.post.id}),
             data=form_data,
             follow=True
         )
         self.assertEqual(Comment.objects.count(), comment_count)
+        self.assertRedirects(
+            response, reverse('users:login')
+            + '?next=' + reverse('posts:add_comment',
+                                 kwargs={'post_id': self.post.id})
+        )
 
     def test_add_comment(self):
         comment_count = Comment.objects.count()
@@ -149,22 +153,3 @@ class PostCreateFormTesting(TestCase):
             follow=True
         )
         self.assertEqual(Comment.objects.count(), comment_count + 1)
-
-    def test_cache(self):
-        cache.delete('index_page')
-        new_post = Post.objects.create(
-            author=PostCreateFormTesting.user,
-            text='Тестовый текст новый',
-            group=PostCreateFormTesting.group,
-        )
-        response = self.guest_client.get(reverse('posts:index'))
-        self.assertTrue(
-            new_post.text in response.context['page_obj'][0].text)
-        new_post_2 = Post.objects.create(
-            author=PostCreateFormTesting.user,
-            text='Тестовый текст новый 1',
-            group=PostCreateFormTesting.group,
-        )
-        self.assertFalse(
-            new_post_2.text in response.context['page_obj'][0].text)
-        cache.delete('index_page')
