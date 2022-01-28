@@ -33,7 +33,7 @@ class StaticURLTests(TestCase):
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 
-    def test_pages_status_code(self):
+    def test_pages_status_code_200(self):
         pages = {
             'index': reverse('posts:index'),
             'group': (reverse('posts:group_list',
@@ -44,12 +44,27 @@ class StaticURLTests(TestCase):
                             kwargs={'post_id': self.post.id})),
             'create': reverse('posts:post_create'),
             'post_edit': (reverse('posts:post_edit',
-                          kwargs={'post_id': self.post.id}))
+                          kwargs={'post_id': self.post.id})),
+            'follow_index': reverse('posts:follow_index')
         }
         for name, reverse_name in pages.items():
             with self.subTest(name=name):
                 response = self.authorized_client.get(reverse_name)
                 self.assertEqual(response.status_code, 200)
+
+    def test_pages_status_code_302(self):
+        pages = {
+            'add_comment': (reverse('posts:add_comment',
+                            kwargs={'post_id': self.post.id})),
+            'profile_follow': (reverse('posts:profile_follow',
+                               kwargs={'username': self.user.username})),
+            'profile_unfollow': (reverse('posts:profile_unfollow',
+                                 kwargs={'username': self.user.username}))
+        }
+        for name, reverse_name in pages.items():
+            with self.subTest(name=name):
+                response = self.authorized_client.get(reverse_name)
+                self.assertEqual(response.status_code, 302)
 
     def test_unexisting_page(self):
         response = self.guest_client.get('/unexisting/')
@@ -63,6 +78,7 @@ class StaticURLTests(TestCase):
             f'/posts/{self.post.id}/': 'posts/post_detail.html',
             f'/posts/{self.post.id}/edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
+            '/follow/': 'posts/follow.html'
         }
         for url, template in templates_url_names.items():
             with self.subTest(url=url):

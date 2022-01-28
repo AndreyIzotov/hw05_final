@@ -181,24 +181,31 @@ class StaticURLTests(TestCase):
         )
         self.assertEqual(len(response.context['page_obj']), 0)
 
-    def test_cache(self):
-        cache.delete('index_page')
-        new_post = Post.objects.create(
-            author=StaticURLTests.user,
-            text='Тестовый текст новый',
-            group=StaticURLTests.group,
+
+class CacheTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='MySelfUser',
+            password='Test12345',
+            email='test@test.com'
         )
-        response = self.guest_client.get(reverse('posts:index'))
+
+    def test_cache(self):
+        response = self.client.get(reverse('posts:index'))
+        cache1 = response.content
+        self.assertEqual(len(response.context['page_obj']), 0)
+        new_post = Post.objects.create(
+            author=self.user,
+            text='Тестовый текст',
+        )
+        response = self.client.get(reverse('posts:index'))
+        cache2 = response.content
+        self.assertEqual(cache1, cache2)
+        cache.delete('index_page')
+        response = self.client.get(reverse('posts:index'))
         self.assertTrue(
             new_post.text in response.context['page_obj'][0].text)
-        new_post_2 = Post.objects.create(
-            author=StaticURLTests.user,
-            text='Тестовый текст новый 1',
-            group=StaticURLTests.group,
-        )
-        self.assertFalse(
-            new_post_2.text in response.context['page_obj'][0].text)
-        cache.delete('index_page')
 
 
 class PaginatorViewsTest(TestCase):
@@ -286,6 +293,7 @@ class FollowTest(TestCase):
         self.client.force_login(self.user)
 
     def test_follow(self):
+        self.assertEqual(Follow.objects.count(), 0)
         self.client.get(reverse('posts:profile_follow',
                         kwargs={'username': self.author.username}))
         follow = Follow.objects.first()
@@ -294,19 +302,25 @@ class FollowTest(TestCase):
         self.assertEqual(follow.user, self.user)
 
     def test_unfollow(self):
-        self.client.get(reverse('posts:profile_follow',
-                                kwargs={'username': self.author.username}))
+        self.assertEqual(Follow.objects.count(), 0)
+        Follow.objects.create(
+            user=self.user,
+            author=self.author
+        )
+        self.assertEqual(Follow.objects.count(), 1)
         self.client.get(reverse('posts:profile_unfollow',
                                 kwargs={'username': self.author.username}))
-        self.assertFalse(Follow.objects.count(), 0)
+        self.assertEqual(Follow.objects.count(), 0)
 
     def test_follow_index(self):
         self.post = Post.objects.create(
             author=self.author,
             text='TestText'
         )
-        self.client.get(reverse('posts:profile_follow',
-                                kwargs={'username': self.author.username}))
+        Follow.objects.create(
+            user=self.user,
+            author=self.author
+        )
         response = self.client.get(reverse('posts:follow_index'))
         self.assertEqual(response.context['page_obj'][0], self.post)
 
@@ -315,9 +329,15 @@ class FollowTest(TestCase):
             author=self.user,
             text='TestText',
         )
-        self.client.get(reverse('posts:profile_follow',
-                                kwargs={'username': self.user.username}))
-        self.client.get(reverse('posts:profile_unfollow',
-                                kwargs={'username': self.user.username}))
+        Follow.objects.create(
+            user=self.user,
+            author=self.author
+        )
+        self.user2 = User.objects.create_user(
+            username='NoName',
+            password='Test12345',
+            email='3@3.com'
+        )
+        self.client.force_login(self.user2)
         response = self.client.get(reverse('posts:follow_index'))
         self.assertEqual(len(response.context['page_obj']), 0)
