@@ -293,24 +293,24 @@ class FollowTest(TestCase):
         self.client.force_login(self.user)
 
     def test_follow(self):
-        self.assertEqual(Follow.objects.count(), 0)
+        count_follow = Follow.objects.count()
         self.client.get(reverse('posts:profile_follow',
                         kwargs={'username': self.author.username}))
         follow = Follow.objects.first()
-        self.assertEqual(Follow.objects.count(), 1)
+        self.assertEqual(Follow.objects.count(), count_follow + 1)
         self.assertEqual(follow.author, self.author)
         self.assertEqual(follow.user, self.user)
 
     def test_unfollow(self):
-        self.assertEqual(Follow.objects.count(), 0)
+        count_follow = Follow.objects.count()
         Follow.objects.create(
             user=self.user,
             author=self.author
         )
-        self.assertEqual(Follow.objects.count(), 1)
+        self.assertEqual(Follow.objects.count(), count_follow + 1)
         self.client.get(reverse('posts:profile_unfollow',
                                 kwargs={'username': self.author.username}))
-        self.assertEqual(Follow.objects.count(), 0)
+        self.assertEqual(Follow.objects.count(), count_follow)
 
     def test_follow_index(self):
         self.post = Post.objects.create(
